@@ -1,5 +1,4 @@
 const express = require("express");
-const dotenv = require("dotenv");
 const app = express();
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -8,14 +7,12 @@ const blogRouter = require("./controllers/blogController");
 const { MONGO_URL } = require("./utils/config");
 const logger = require("./utils/logger");
 const middleware = require("./utils/middleware");
-dotenv.config();
+
 
 mongoose
   .connect(MONGO_URL, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    useFindAndModify: false,
-    useCreateIndex: true,
   })
   .then(() => {
     logger.info("connected to MongoDB");

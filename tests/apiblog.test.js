@@ -3,6 +3,7 @@ const supertest = require("supertest");
 
 const app = require("../app");
 const Blog = require("../models/blog");
+const helper = require("./testHelper");
 
 const api = supertest(app);
 
@@ -74,13 +75,13 @@ test("If the likes property is missing, it will default to 0 ", async () => {
     url: "DDD",
   };
 
-  const noteAdd = await api
+  const blogAdd = await api
     .post("/api/blogs")
     .send(newBlog)
     .expect(200)
     .expect("Content-Type", /application\/json/);
 
-  expect(noteAdd.body.likes).toBe(0);
+  expect(blogAdd.body.likes).toBe(0);
 });
 
 test("If title and url are missing, respond with 400 bad request", async () => {
@@ -90,12 +91,27 @@ test("If title and url are missing, respond with 400 bad request", async () => {
   };
 
   await api.post("/api/blogs").send(newBlog).expect(400);
-  const response = await api.get('/api/blogs')
+  const response = await api.get("/api/blogs");
 
-  expect(response.body).toHaveLength(initialBlogs.length+1)
-  
+  expect(response.body).toHaveLength(initialBlogs.length);
 });
 
+test("delete a blog post", async () => {
+  let blogs = await helper.blogsInDb();
+  const blogToDelete = blogs[0];
+  console.log(blogToDelete);
+  await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+
+  const notesAtEnd = await helper.blogsInDb();
+
+  expect(notesAtEnd).toHaveLength(initialBlogs.length - 1);
+});
+
+test("should update a blog post", async () => {
+  let blogs = await helper.blogsInDb();
+  const blogToUpdate = blogs[0];
+  await api.put(`/api/blogs/${blogToUpdate.id}`).expect(200);
+});
 afterAll(() => {
   mongoose.connection.close();
 });
