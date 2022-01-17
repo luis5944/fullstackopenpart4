@@ -1,12 +1,11 @@
-const mongoose = require("mongoose");
-const supertest = require("supertest");
-
 const app = require("../app");
-const Blog = require("../models/blog");
-const helper = require("./testHelper");
-
+const supertest = require("supertest");
 const api = supertest(app);
+const helper = require("./testHelper");
+const Blog = require("../models/blog");
+const mongoose = require("mongoose");
 
+let headers;
 const initialBlogs = [
   {
     author: "AAA",
@@ -54,10 +53,25 @@ test("a valid blog can be added", async () => {
     url: "CCC",
   };
 
+  const newUser = {
+    username: "rootaa",
+    name: "root",
+    password: "password",
+  };
+
+  await api.post("/api/users").send(newUser);
+
+  const result = await api.post("/api/login").send(newUser);
+
+  headers = {
+    Authorization: `bearer ${result.body.token}`,
+  };
+
   await api
     .post("/api/blogs")
     .send(newBlog)
     .expect(200)
+    .set(headers)
     .expect("Content-Type", /application\/json/);
 
   const response = await api.get("/api/blogs");
@@ -66,6 +80,20 @@ test("a valid blog can be added", async () => {
 
   expect(response.body).toHaveLength(initialBlogs.length + 1);
   expect(title).toContain("CCC");
+});
+test("without token fail to create a blog", async () => {
+  const newBlog = {
+    author: "CCC",
+    likes: 3,
+    title: "CCC",
+    url: "CCC",
+  };
+  await api
+    .post("/api/blogs")
+    .send(newBlog)
+    .expect(401)
+
+    .expect("Content-Type", /application\/json/);
 });
 
 test("If the likes property is missing, it will default to 0 ", async () => {
@@ -79,6 +107,7 @@ test("If the likes property is missing, it will default to 0 ", async () => {
     .post("/api/blogs")
     .send(newBlog)
     .expect(200)
+    .set(headers)
     .expect("Content-Type", /application\/json/);
 
   expect(blogAdd.body.likes).toBe(0);
@@ -90,21 +119,25 @@ test("If title and url are missing, respond with 400 bad request", async () => {
     likes: 12,
   };
 
-  await api.post("/api/blogs").send(newBlog).expect(400);
+  await api.post("/api/blogs").send(newBlog).set(headers).expect(400);
   const response = await api.get("/api/blogs");
 
   expect(response.body).toHaveLength(initialBlogs.length);
 });
 
 test("delete a blog post", async () => {
-  let blogs = await helper.blogsInDb();
-  const blogToDelete = blogs[0];
-  console.log(blogToDelete);
-  await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+  const newBlog = {
+    title: "one blog",
+    author: "Me",
+    url: "www",
+    likes: 14,
+  };
 
-  const notesAtEnd = await helper.blogsInDb();
+  await api.post("/api/blogs").send(newBlog).set(headers).expect(200);
 
-  expect(notesAtEnd).toHaveLength(initialBlogs.length - 1);
+  const allBlogs = await helper.blogsInDb();
+  const blogToDelete = allBlogs.find((blog) => blog.title === newBlog.title);
+  await api.delete(`/api/blogs/${blogToDelete.id}`).set(headers).expect(204);
 });
 
 test("should update a blog post", async () => {
